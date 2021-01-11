@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:homemgt/firsttab.dart';
+import 'package:homemgt/screens/firsttab.dart';
 
 class HomePage extends StatefulWidget {
   @override
