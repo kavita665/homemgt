@@ -43,17 +43,17 @@ void main() async {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {
     runApp(
-      App(userRepository: userRepository, theme: theme),
+      App(userRepository: userRepository,),
     );
   });
 }
 
 class App extends StatefulWidget {
   final UserRepository _userRepository;
-  final String theme;
+
 
   const App(
-      {Key key, @required UserRepository userRepository, this.theme = "light"})
+      {Key key, @required UserRepository userRepository,})
       : assert(userRepository != null),
         _userRepository = userRepository,
         super(key: key);
