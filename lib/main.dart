@@ -1,83 +1,107 @@
-// import 'package:flutter/gestures.dart';
-// import 'package:flutter/material.dart';
-// import 'package:homemgt/balance.dart';
-// import 'package:homemgt/homepage.dart';
-
-// void main() {
-//   runApp(MyApp());
-// }
-
-// class MyApp extends StatelessWidget {
-//   // This widget is the root of your application.
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'Flutter Demo',
-//       home: HomePage(),
-//       //home: Balance(), 
-//       // theme: ThemeData(primarySwatch: Colors.red,brightness: Brightness.dark),
-//       // themeMode: ThemeMode.dark, 
-//        debugShowCheckedModeBanner: false,  
-//        );
-//   }
-// }
-import 'package:bloc/bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:homemgt/bloc/authentication_bloc/authentication_event.dart';
-import 'package:homemgt/screens/homepage.dart';
-import './services/user_repository.dart';
-import 'bloc/authentication_bloc/authentication_bloc.dart';
-import 'bloc_delegate.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:scoped_model/scoped_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'pages/login.dart';
+import 'pages/welcome_screen.dart';
 
+import 'dart:core';
 
+import 'package:homemgt/scoped_models/main.dart';
+
+final FirebaseAuth _auth = FirebaseAuth.instance;
+String deviceTheme = "light";
+bool firstRun;
+
+final ThemeData lightTheme = ThemeData(
+  brightness: Brightness.light,
+  primaryColor: Colors.blue[700],
+  primaryColorLight: Colors.blueAccent,
+  accentColor: Colors.blueAccent,
+);
+
+final ThemeData darkTheme = ThemeData(
+    brightness: Brightness.dark,
+    primaryColor: Colors.grey[700],
+    primaryColorLight: Colors.grey[850],
+    accentColor: Colors.blue,
+    textSelectionHandleColor: Colors.blue);
+
+restartApp() {
+  main();
+}
+
+logout() {
+  if (deviceTheme == "light") {
+    runApp(MyApp(lightTheme));
+  } else {
+    runApp(MyApp(darkTheme));
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-
-  Bloc.observer = AppBlocDelegate();
-  final UserRepository userRepository = UserRepository();
-
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-      .then((_) {
-    runApp(
-      App(userRepository: userRepository,),
-    );
-  });
-}
-
-class App extends StatefulWidget {
-  final UserRepository _userRepository;
-
-
-  const App(
-      {Key key, @required UserRepository userRepository,})
-      : assert(userRepository != null),
-        _userRepository = userRepository,
-        super(key: key);
-
-  @override
-  State<StatefulWidget> createState() {
-    return AppState();
+  await Firebase.initializeApp();
+  SharedPreferences pref = await SharedPreferences.getInstance();
+  String theme = (pref.getString("theme") ?? "light");
+  deviceTheme = theme;
+  if (theme == "dark") {
+    runApp(MyApp(darkTheme));
+  } else {
+    runApp(MyApp(lightTheme));
   }
 }
 
-class AppState extends State<App> {
+class MyApp extends StatefulWidget {
+  final ThemeData theme;
+  MyApp(this.theme);
+  @override
+  State<StatefulWidget> createState() {
+    return _MyAppState();
+  }
+}
 
+class _MyAppState extends State<MyApp> {
+  MainModel model = MainModel();
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-                  
-                    home: MultiBlocProvider(
-                        providers: [
-                          BlocProvider(create: (context)=>AuthenticationBloc(userRepository: UserRepository())..add(AppStarted()),)
-                        ],
-                        child: HomePage(),
-                    ),
-                  )
-                ;
+    return ScopedModel<MainModel>(
+      model: model,
+      child: MaterialApp(
+        title: 'Money Monitor',
+        home: _authenticateUser(model.loginUser, model),
+        theme: widget.theme,
+      ),
+    );
   }
+}
+
+Widget _authenticateUser(Function loginUser, MainModel model) {
+  return  StreamBuilder<User>(
+    stream: _auth.authStateChanges(),
+    builder: (BuildContext context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return _buildSplashScreen();
+      } else {
+        if (snapshot.hasData) {
+          User user = snapshot.data;
+
+          //Fetch User Data
+          loginUser();
+          return WelcomeScreen();
+        }
+        return LoginScreen();
+      }
+    },
+  );
+}
+
+Widget _buildSplashScreen() {
+  return Scaffold(
+    body: Center(
+      child: Text("Loading..."),
+    ),
+  );
 }
